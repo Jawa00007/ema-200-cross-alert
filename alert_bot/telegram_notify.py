@@ -10,4 +10,5 @@ def send_message(text: str) -> None:
         raise RuntimeError("Telegram credentials are not configured")
     url = f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
     resp = _session.post(url, data={"chat_id": config.TELEGRAM_CHAT_ID, "text": text}, timeout=15)
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"Telegram API error {resp.status_code}: {resp.text}")
