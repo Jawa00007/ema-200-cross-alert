@@ -36,12 +36,15 @@ def main() -> int:
     state_mod.save_state(cur_state)
 
     for alert in alerts:
-        text = (
-            f"\U0001F6A8 {alert['instrument'].upper()} {alert['direction']} the 200 EMA\n"
-            f"Close: {alert['close']:.5f}\nEMA200: {alert['ema']:.5f}"
-        )
-        telegram_notify.send_message(text)
-        state_mod.append_log(alert["instrument"], alert["direction"], alert["close"], alert["ema"])
+        try:
+            text = (
+                f"\U0001F6A8 {alert['instrument'].upper()} {alert['direction']} the 200 EMA\n"
+                f"Close: {alert['close']:.5f}\nEMA200: {alert['ema']:.5f}"
+            )
+            telegram_notify.send_message(text)
+            state_mod.append_log(alert["instrument"], alert["direction"], alert["close"], alert["ema"])
+        except Exception as exc:  # noqa: BLE001 - a failed send shouldn't block state from being saved
+            errors.append(f"{alert['instrument']} alert: {exc}")
 
     if errors:
         print("Errors during run:\n" + "\n".join(errors), file=sys.stderr)
