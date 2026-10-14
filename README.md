@@ -41,10 +41,23 @@ Note: GitHub's free scheduled runs can occasionally lag a few extra minutes unde
 - iPhone Settings → Telegram → Notifications: enable Banners, Sounds, Badges.
 - If you use Focus modes / Do Not Disturb: iPhone Settings → Focus → (your mode) → Apps, allow Telegram through, or mark its notifications as Time Sensitive.
 
-## 6. Dashboard
+## 6. MT5 account stats (optional)
+
+Shows balance/equity/gain/drawdown for your MT5 account(s) on the dashboard, via [Myfxbook](https://www.myfxbook.com) (free, no local terminal needed to stay running):
+
+1. Sign up at myfxbook.com, go to **Portfolio → Add Account → MetaTrader 5**, and choose the **"Auto Update"** connection method (free, server-side) — not "Live (Verified)" ($5/mo) or "Expert Advisor" (requires your terminal to stay open).
+2. Use your account's **investor (read-only) password**, never the full trading password.
+3. Add `MYFXBOOK_EMAIL` and `MYFXBOOK_PASSWORD` to `.env` (local) and as GitHub repo secrets (deployed) — this is your real Myfxbook login, not a scoped API token, so treat it with the same care as any other password.
+4. Test locally: `python -m mt5_stats.fetch` — writes `data/mt5_accounts.json`.
+
+This runs on its own hourly schedule (`.github/workflows/mt5_stats.yml`), separate from the 5-minute EMA check, to stay well within Myfxbook's free API rate limit. Balance/equity don't need 5-minute granularity the way price crossovers do.
+
+**Important if you have a prop-firm funded account**: check your prop firm's rules before ever connecting a real funded account to Myfxbook (or any third-party tracker) — some firms prohibit external connections even when read-only, and violating that can void the account. This project only ever reads account data (never places trades), but that's a separate question from what your specific prop firm's terms allow.
+
+## 7. Dashboard
 
 ```
 streamlit run dashboard/app.py
 ```
 
-Shows current price/EMA200/distance per pair and the crossover log. Deploy the same repo on [Streamlit Community Cloud](https://streamlit.io/cloud) pointing at `dashboard/app.py` for a hosted, mobile-friendly view — it reads straight from the `data/` files the GitHub Action keeps updated.
+Shows current price/EMA200/distance per pair, the crossover log, and MT5 account stats if configured. Deploy the same repo on [Streamlit Community Cloud](https://streamlit.io/cloud) pointing at `dashboard/app.py` for a hosted, mobile-friendly view — it reads straight from the `data/` files the GitHub Actions keep updated.

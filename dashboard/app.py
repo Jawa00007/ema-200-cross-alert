@@ -63,7 +63,7 @@ def load_mt5_accounts() -> dict:
 
 def load_mt5_history() -> pd.DataFrame:
     if not os.path.exists(mt5_config.HISTORY_PATH):
-        return pd.DataFrame(columns=["timestamp", "account", "balance", "equity", "margin"])
+        return pd.DataFrame(columns=["timestamp", "account", "balance", "equity", "gain_pct", "drawdown_pct"])
     df = pd.read_csv(mt5_config.HISTORY_PATH)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df
@@ -126,7 +126,7 @@ else:
 
 st.subheader("MT5 Accounts")
 if not mt5_accounts:
-    st.caption("No MT5 account data yet - configure METAAPI_TOKEN and account IDs to enable this.")
+    st.caption("No MT5 account data yet - configure MYFXBOOK_EMAIL and MYFXBOOK_PASSWORD to enable this.")
 else:
     mt5_cols = st.columns(len(mt5_accounts))
     for col, (label, stats) in zip(mt5_cols, mt5_accounts.items()):
@@ -135,8 +135,8 @@ else:
             st.metric(label=f"{label} - Balance", value=f"{stats['balance']:,.2f}")
             st.metric(label=f"{label} - Equity", value=f"{stats['equity']:,.2f}", delta=f"{floating_pnl:+,.2f}")
             st.caption(
-                f"Margin {stats['margin']:,.2f} · Free margin {stats['free_margin']:,.2f} · "
-                f"{stats['open_positions']} open position(s) · Updated {stats['last_updated']}"
+                f"Gain {stats['gain_pct']:+.2f}% · Drawdown {stats['drawdown_pct']:.2f}% · "
+                f"{'Demo' if stats.get('demo') else 'Live'} · Updated {stats['last_updated']}"
             )
 
     if not mt5_history.empty:

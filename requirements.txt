@@ -3,4 +3,3 @@ requests>=2.31
 python-dotenv>=1.0
 streamlit>=1.30
 altair>=5.0
-metaapi-cloud-sdk>=29.0.0

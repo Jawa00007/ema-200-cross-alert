@@ -7,13 +7,8 @@ try:
 except ImportError:
     pass
 
-METAAPI_TOKEN = os.environ.get("METAAPI_TOKEN", "")
-
-_raw_accounts = [
-    (os.environ.get("MT5_ACCOUNT_1_LABEL", "Account 1"), os.environ.get("METAAPI_ACCOUNT_ID_1", "")),
-    (os.environ.get("MT5_ACCOUNT_2_LABEL", "Account 2"), os.environ.get("METAAPI_ACCOUNT_ID_2", "")),
-]
-ACCOUNTS = [{"label": label, "account_id": account_id} for label, account_id in _raw_accounts if account_id]
+MYFXBOOK_EMAIL = os.environ.get("MYFXBOOK_EMAIL", "")
+MYFXBOOK_PASSWORD = os.environ.get("MYFXBOOK_PASSWORD", "")
 
 HISTORY_RETENTION_DAYS = 14
 
