@@ -18,7 +18,7 @@ input int InpATRPeriod=14;
 input double InpZoneATR=0.12;                    // M15 ATR fraction for level zone
 input double InpSLBufferATR=0.08;                // M1 ATR fraction beyond swing
 input double InpStrongBodyFraction=0.65;
-input double InpMinRewardRisk=1.20;
+input double InpMinRewardRisk=2.00;
 input double InpMaxSpreadPoints=80;              // Calibrate to broker's XAUUSD quote
 input int InpMaxTradesPerDay=3;
 input int InpMaxConsecutiveLosses=2;
@@ -45,10 +45,24 @@ bool HasPosition(){ for(int i=PositionsTotal()-1;i>=0;i--){ ulong t=PositionGetT
 double SpreadPts(){ MqlTick t; if(!SymbolInfoTick(Sym(),t))return 1e9; return (t.ask-t.bid)/Pt(); }
 
 bool Levels(double price,double &sup,double &res){
+ // A swing point's role (support vs resistance) comes from which side of
+ // the current price it sits on, not from whether it was originally a
+ // fractal HIGH or LOW - an old resistance becomes support once price
+ // breaks above it, same as the trader manually re-drawing lines in the
+ // transcript. Treating "up" fractals as resistance-only and "lo" as
+ // support-only meant resistance came back 0 during any sustained
+ // new-high move (no confirmed fractal HIGH exists above price while
+ // price keeps making fresh highs), which silently blocked 3 of the 4
+ // entry paths and left the EA structurally short-only - confirmed via a
+ // backtest with 86 short trades and 0 long trades. Scanning both
+ // buffers and classifying by position fixes this in both directions.
  sup=0;res=0; double up[],lo[]; ArraySetAsSeries(up,true);ArraySetAsSeries(lo,true);
  int n=MathMax(InpM15Lookback,40); if(CopyBuffer(hFractals,0,0,n,up)<n||CopyBuffer(hFractals,1,0,n,lo)<n)return false;
- // Fractals are confirmed with completed bars; search newest confirmed swing first.
- for(int i=3;i<n;i++){ if(sup==0&&lo[i]>0&&lo[i]<price)sup=lo[i]; if(res==0&&up[i]>0&&up[i]>price)res=up[i]; if(sup>0&&res>0)break; }
+ for(int i=3;i<n;i++){
+  double h=up[i], l=lo[i];
+  if(h>0){ if(h<price&&(sup==0||h>sup))sup=h; if(h>price&&(res==0||h<res))res=h; }
+  if(l>0){ if(l<price&&(sup==0||l>sup))sup=l; if(l>price&&(res==0||l<res))res=l; }
+ }
  return sup>0||res>0;
 }
 double SwingLow(double price){double s=0,r=0;Levels(price,s,r);return s;}
@@ -63,12 +77,20 @@ bool StrongBull(const MqlRates &c){return Bull(c)&&Body(c)/Range(c)>=InpStrongBo
 bool StrongBear(const MqlRates &c){return Bear(c)&&Body(c)/Range(c)>=InpStrongBodyFraction;}
 
 double Lots(double entry,double sl){
+ // Deliberately NOT using SYMBOL_TRADE_TICK_VALUE here: on this broker's
+ // XAUUSD, it reports 0.10 per tick, but contract size (100) x tick size
+ // (0.01) implies 1.00 per tick - confirmed via a diagnostic backtest run
+ // where position sizes came out ~10x larger than the configured risk%
+ // actually intended (e.g. a 2.52-point SL risking $50 opened 1.98 lots
+ // instead of ~0.19). Computing risk straight from contract size sidesteps
+ // that misreported field. Assumes profit currency == account currency
+ // (true here, both USD) - revisit if ever traded on a different account currency.
  double money=AccountInfoDouble(ACCOUNT_EQUITY)*InpRiskPercent/100.0;
- double ts=SymbolInfoDouble(Sym(),SYMBOL_TRADE_TICK_SIZE), tv=SymbolInfoDouble(Sym(),SYMBOL_TRADE_TICK_VALUE_LOSS);
- if(tv<=0)tv=SymbolInfoDouble(Sym(),SYMBOL_TRADE_TICK_VALUE); if(ts<=0||tv<=0)return 0;
- double perLot=MathAbs(entry-sl)/ts*tv; if(perLot<=0)return 0;
+ double contractSize=SymbolInfoDouble(Sym(),SYMBOL_TRADE_CONTRACT_SIZE); if(contractSize<=0)return 0;
+ double perLot=MathAbs(entry-sl)*contractSize; if(perLot<=0)return 0;
  double step=SymbolInfoDouble(Sym(),SYMBOL_VOLUME_STEP),minv=SymbolInfoDouble(Sym(),SYMBOL_VOLUME_MIN),maxv=SymbolInfoDouble(Sym(),SYMBOL_VOLUME_MAX);
- if(step<=0)return 0; double v=MathFloor((money/perLot)/step)*step; v=MathMin(v,maxv); if(v<minv)return 0; return NormalizeDouble(v,step<0.01?3:2);
+ if(step<=0)return 0; double v=MathFloor((money/perLot)/step)*step; v=MathMin(v,maxv); if(v<minv)return 0;
+ return NormalizeDouble(v,step<0.01?3:2);
 }
 
 bool OpenTrade(bool buy,double swing,double tp1,double tp2){
