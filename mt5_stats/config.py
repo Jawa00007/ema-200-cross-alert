@@ -15,5 +15,8 @@ _raw_accounts = [
 ]
 ACCOUNTS = [{"label": label, "account_id": account_id} for label, account_id in _raw_accounts if account_id]
 
+HISTORY_RETENTION_DAYS = 14
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 OUTPUT_PATH = os.path.join(DATA_DIR, "mt5_accounts.json")
+HISTORY_PATH = os.path.join(DATA_DIR, "mt5_history.csv")

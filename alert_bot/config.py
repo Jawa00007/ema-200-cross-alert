@@ -19,6 +19,9 @@ FX_INSTRUMENTS = ["eurusd", "gbpusd", "xauusd", "usdjpy"]
 CRYPTO_INSTRUMENTS = ["btcusd"]
 INSTRUMENTS = FX_INSTRUMENTS + CRYPTO_INSTRUMENTS
 
+HISTORY_RETENTION_DAYS = 14
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 STATE_PATH = os.path.join(DATA_DIR, "crossover_state.json")
 LOG_PATH = os.path.join(DATA_DIR, "crossover_log.csv")
+PRICE_HISTORY_PATH = os.path.join(DATA_DIR, "price_history.csv")

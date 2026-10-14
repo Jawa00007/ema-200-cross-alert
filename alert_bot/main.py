@@ -1,9 +1,10 @@
 import sys
+from datetime import datetime, timezone
 
 from . import config, ema as ema_mod, state as state_mod, telegram_notify, tiingo_client
 
 
-def process_instrument(instrument: str, cur_state: dict):
+def process_instrument(instrument: str, cur_state: dict, history_rows: list):
     """Updates cur_state in place for this instrument. Returns an alert dict if a crossover fired."""
     prior = cur_state.get(instrument)
 
@@ -20,6 +21,14 @@ def process_instrument(instrument: str, cur_state: dict):
         alert = {"instrument": instrument, "direction": direction, "close": close, "ema": ema}
 
     state_mod.update_instrument_state(cur_state, instrument, close, ema, side)
+    history_rows.append(
+        {
+            "timestamp": datetime.now(timezone.utc),
+            "instrument": instrument,
+            "close": close,
+            "ema200": ema,
+        }
+    )
     return alert
 
 
@@ -27,16 +36,19 @@ def main() -> int:
     cur_state = state_mod.load_state()
     alerts = []
     errors = []
+    history_rows = []
 
     for instrument in config.INSTRUMENTS:
         try:
-            alert = process_instrument(instrument, cur_state)
+            alert = process_instrument(instrument, cur_state, history_rows)
             if alert:
                 alerts.append(alert)
         except Exception as exc:  # noqa: BLE001 - one bad instrument shouldn't kill the run
             errors.append(f"{instrument}: {exc}")
 
     state_mod.save_state(cur_state)
+    if history_rows:
+        state_mod.append_price_history(history_rows)
 
     for alert in alerts:
         try:

@@ -2,8 +2,9 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 from metaapi_cloud_sdk import MetaApi
 
 from . import config
@@ -63,6 +64,31 @@ async def run() -> dict:
     return results
 
 
+def append_account_history(results: dict) -> None:
+    """Appends one row per account for this run, then prunes anything older
+    than HISTORY_RETENTION_DAYS so the file stays bounded over time.
+    """
+    os.makedirs(config.DATA_DIR, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    rows = [
+        {"timestamp": now, "account": label, "balance": stats["balance"], "equity": stats["equity"], "margin": stats["margin"]}
+        for label, stats in results.items()
+    ]
+    new_df = pd.DataFrame(rows)
+    new_df["timestamp"] = pd.to_datetime(new_df["timestamp"], utc=True)
+
+    if os.path.exists(config.HISTORY_PATH):
+        existing = pd.read_csv(config.HISTORY_PATH)
+        existing["timestamp"] = pd.to_datetime(existing["timestamp"], utc=True)
+        cutoff = now - timedelta(days=config.HISTORY_RETENTION_DAYS)
+        existing = existing[existing["timestamp"] >= cutoff]
+        combined = pd.concat([existing, new_df], ignore_index=True)
+    else:
+        combined = new_df
+
+    combined.to_csv(config.HISTORY_PATH, index=False)
+
+
 def main() -> int:
     if not config.METAAPI_TOKEN or not config.ACCOUNTS:
         # Not configured yet is an expected, normal state (this feature is
@@ -76,6 +102,9 @@ def main() -> int:
     os.makedirs(config.DATA_DIR, exist_ok=True)
     with open(config.OUTPUT_PATH, "w") as f:
         json.dump(results, f, indent=2)
+
+    if results:
+        append_account_history(results)
 
     return 0 if results else 1
 
