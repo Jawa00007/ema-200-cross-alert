@@ -61,3 +61,7 @@ streamlit run dashboard/app.py
 ```
 
 Shows current price/EMA200/distance per pair, the crossover log, and MT5 account stats if configured. Deploy the same repo on [Streamlit Community Cloud](https://streamlit.io/cloud) pointing at `dashboard/app.py` for a hosted, mobile-friendly view — it reads straight from the `data/` files the GitHub Actions keep updated.
+
+## Troubleshooting: scheduled runs never firing
+
+If `gh run list` shows only `workflow_dispatch` runs and never a `schedule`-triggered one, even hours after the workflow was first pushed, the cron registration can get stuck despite valid YAML and an `"active"` workflow state. Fix: `gh workflow disable <file>` followed by `gh workflow enable <file>` for the affected workflow(s) forces GitHub to re-register the schedule. Verify afterward with `gh run list --workflow <file> --json event` once enough time has passed for the next scheduled tick.
