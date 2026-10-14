@@ -12,7 +12,8 @@ CTrade trade;
 input string InpSymbol="";                       // Blank = chart symbol
 input double InpRiskPercent=0.50;                // Equity risk per trade
 input bool InpUseReversals=true;
-input bool InpUseBreakout=true;
+input bool InpAllowShortReversals=false;         // REV sells lost money on both tested windows (-$14/trade avg); REV buys were the one consistently profitable setup (+$4.44/trade avg). See Reversal() comment - may be fitting this test period's upward drift, not a proven structural edge.
+input bool InpUseBreakout=false;                 // Both directions net negative on both tested windows (-$6 to -$17/trade avg); the literal "enter on the strong candle" mechanic doesn't hold up. See Breakout() comment.
 input int InpM15Lookback=160;
 input int InpATRPeriod=14;
 input double InpZoneATR=0.12;                    // M15 ATR fraction for level zone
@@ -26,7 +27,7 @@ input double InpMaxDailyLossPercent=2.0;
 input bool InpBreakEvenAtTP1=true;
 input ulong InpMagic=151001;
 input int InpDeviationPoints=20;
-input bool InpUseTrendFilter=false;               // Only trade with the M15 trend
+input bool InpUseTrendFilter=true;               // Breakout entries only trade with the M15 trend
 input int InpTrendMAPeriod=50;
 
 int hFractals=INVALID_HANDLE, hATR15=INVALID_HANDLE, hATR1=INVALID_HANDLE, hTrendMA=INVALID_HANDLE;
@@ -67,19 +68,14 @@ bool Levels(double price,double &sup,double &res){
  }
  return sup>0||res>0;
 }
-// Tried and found NET HARMFUL on backtest, disabled by default - keeping
-// the mechanism (off) and this note so it isn't re-attempted blindly.
-// Motivation: longs won more than shorts (42.5% vs 35.8%, net +$3.81 vs
-// -$11.91/trade) across two test windows, suggesting shorts fight the
-// broader uptrend. But gating entries by price-vs-M15-MA backfired hard
-// on BOTH windows - Profit Factor dropped from 0.94/0.77 to 0.67/0.58, and
-// long win rate specifically collapsed from 50.6%/45.1% to 35.4%/35.5%.
-// Reason: a REVERSAL long is entered exactly when price has just dipped
-// below recent levels before bouncing - that's precisely when "price below
-// MA" reads as downtrend, so this filter blocks the best long setups
-// (pullback buys) rather than the bad ones. A trend filter suits
-// continuation/breakout entries, not mean-reversion ones; the short-side
-// weakness needs a different fix, not this one.
+// Originally gated BOTH Reversal() and Breakout() and was found net
+// harmful on backtest (Profit Factor 0.94/0.77 -> 0.67/0.58, long win rate
+// 50.6%/45.1% -> 35.4%/35.5% across two test windows) - because a reversal
+// long enters exactly when price has just dipped below recent levels
+// before bouncing, which this filter reads as "downtrend" and wrongly
+// blocks. Now scoped to Breakout() only, where trend alignment is a
+// genuine continuation-trade edge rather than a conflict with the setup's
+// own logic - Reversal() no longer calls this at all.
 int Trend(double price){
  if(!InpUseTrendFilter)return 0;
  double ma[]; ArraySetAsSeries(ma,true);
@@ -116,7 +112,7 @@ double Lots(double entry,double sl){
  return NormalizeDouble(v,step<0.01?3:2);
 }
 
-bool OpenTrade(bool buy,double swing,double tp1,double tp2){
+bool OpenTrade(bool buy,double swing,double tp1,double tp2,string setupType){
  MqlTick q; if(!SymbolInfoTick(Sym(),q))return false; double entry=buy?q.ask:q.bid, a=ATR(hATR1);
  if(a<=0)return false; double sl=NP(buy?swing-a*InpSLBufferATR:swing+a*InpSLBufferATR); tp1=NP(tp1);tp2=NP(tp2);
  if((buy&&(sl>=entry||tp2<=entry))||(!buy&&(sl<=entry||tp2>=entry)))return false;
@@ -125,8 +121,12 @@ bool OpenTrade(bool buy,double swing,double tp1,double tp2){
  if((buy&&(entry-sl<minDist||tp2-entry<minDist))||(!buy&&(sl-entry<minDist||entry-tp2<minDist)))return false;
  double vol=Lots(entry,sl);if(vol<=0){Print("Trade skipped: minimum lot would exceed risk budget.");return false;}
  trade.SetExpertMagicNumber(InpMagic);trade.SetDeviationInPoints(InpDeviationPoints);trade.SetTypeFillingBySymbol(Sym());
- bool ok=buy?trade.Buy(vol,Sym(),0,sl,tp2,"HawkSR buy"):trade.Sell(vol,Sym(),0,sl,tp2,"HawkSR sell");
- if(ok){tradesToday++;tp1Done=false;activeTP1=tp1;Print("Opened ",(buy?"BUY":"SELL")," volume=",vol," SL=",sl," TP1=",tp1," TP2=",tp2);}
+ // setupType (REV/BRK) rides in the comment so backtest analysis can split
+ // performance by setup, not just by direction - a reversal and a breakout
+ // are different strategies that happen to share this EA.
+ string cmt=StringFormat("HawkSR %s %s",buy?"buy":"sell",setupType);
+ bool ok=buy?trade.Buy(vol,Sym(),0,sl,tp2,cmt):trade.Sell(vol,Sym(),0,sl,tp2,cmt);
+ if(ok){tradesToday++;tp1Done=false;activeTP1=tp1;Print("Opened ",(buy?"BUY":"SELL")," ",setupType," volume=",vol," SL=",sl," TP1=",tp1," TP2=",tp2);}
  else Print("Order failed: ",trade.ResultRetcode()," ",trade.ResultRetcodeDescription()); return ok;
 }
 
@@ -151,18 +151,30 @@ void ManagePosition(){
 // that actually made the wick) - not to c - per the transcript: "SL goes a
 // little below the wick IT left behind" (the rejection candle's wick).
 void Reversal(const MqlRates &c,const MqlRates &p,double s,double r,double tol){
- int trend=Trend(c.close);
- if(InpUseReversals&&s>0&&trend>=0){
+ // No trend gate here - a reversal buy fires exactly when price has just
+ // dipped below recent levels before bouncing, which a trend filter reads
+ // as "downtrend" and wrongly blocks (confirmed harmful via backtest, see
+ // Trend()'s comment). Trend-gating is applied in Breakout() only, where
+ // it's a genuine continuation trade.
+ //
+ // Short reversals (InpAllowShortReversals) default OFF: across two
+ // independent 3-month XAUUSD M1 backtests, REV buys averaged +$4.44/trade
+ // (128 trades) while REV sells averaged -$13.99/trade (137 trades) - the
+ // only consistently profitable sub-strategy found so far. Caveat: both
+ // test windows had gold trending up overall, so this split may reflect
+ // that period's drift rather than a structural flaw in short reversals -
+ // re-test if conditions change materially (e.g. a sustained downtrend).
+ if(InpUseReversals&&s>0){
   bool touch=p.low<=s+tol&&p.low>=s-2*tol;
   bool reject=LowerWick(p)>Body(p)*0.5||Bull(p);
   bool confirm=Bull(c)&&c.close>MathMax(p.open,p.close);
-  if(touch&&reject&&confirm&&r>c.close){double t2=SwingHigh(r+tol);if(t2>r)OpenTrade(true,p.low,r,t2);}
+  if(touch&&reject&&confirm&&r>c.close){double t2=SwingHigh(r+tol);if(t2>r)OpenTrade(true,p.low,r,t2,"REV");}
  }
- if(InpUseReversals&&r>0&&trend<=0){
+ if(InpUseReversals&&InpAllowShortReversals&&r>0){
   bool touch=p.high>=r-tol&&p.high<=r+2*tol;
   bool reject=UpperWick(p)>Body(p)*0.5||Bear(p);
   bool confirm=Bear(c)&&c.close<MathMin(p.open,p.close);
-  if(touch&&reject&&confirm&&s<c.close){double t2=SwingLow(s-tol);if(t2>0&&t2<s)OpenTrade(false,p.high,s,t2);}
+  if(touch&&reject&&confirm&&s<c.close){double t2=SwingLow(s-tol);if(t2>0&&t2<s)OpenTrade(false,p.high,s,t2,"REV");}
  }
 }
 
@@ -170,14 +182,21 @@ void Reversal(const MqlRates &c,const MqlRates &p,double s,double r,double tol){
 // entry happens immediately on that candle's close, per the transcript
 // ("powerful candle breaks it... entry will happen on this very candle").
 // No waiting for a post-break pullback/retest.
+//
+// Disabled by default (InpUseBreakout): across two independent 3-month
+// XAUUSD M1 backtests, BOTH buy (-$6.18/trade, 18 trades) and sell
+// (-$16.96/trade, 17 trades) breakout trades were net losers - unlike the
+// reversal buy/sell split, this isn't directional drift, the mechanic
+// itself (enter immediately, no pullback confirmation) just doesn't hold
+// up as implemented on this instrument/timeframe.
 void Breakout(const MqlRates &c,double s,double r,double tol){
  if(!InpUseBreakout)return;
  int trend=Trend(c.close);
  if(r>0&&trend>=0&&StrongBull(c)&&c.close>r+tol){
-  double t1=SwingHigh(r+tol); if(t1>c.close){double t2=SwingHigh(t1+tol); if(t2>t1)OpenTrade(true,c.low,t1,t2);}
+  double t1=SwingHigh(r+tol); if(t1>c.close){double t2=SwingHigh(t1+tol); if(t2>t1)OpenTrade(true,c.low,t1,t2,"BRK");}
  }
  else if(s>0&&trend<=0&&StrongBear(c)&&c.close<s-tol){
-  double t1=SwingLow(s-tol); if(t1>0&&t1<c.close){double t2=SwingLow(t1-tol); if(t2>0&&t2<t1)OpenTrade(false,c.high,t1,t2);}
+  double t1=SwingLow(s-tol); if(t1>0&&t1<c.close){double t2=SwingLow(t1-tol); if(t2>0&&t2<t1)OpenTrade(false,c.high,t1,t2,"BRK");}
  }
 }
 

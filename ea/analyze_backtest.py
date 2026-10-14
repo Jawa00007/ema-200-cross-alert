@@ -6,6 +6,7 @@ Appends one row per entry trade (grouping partial-close exits together) to
 ea/backtest_log.csv, plus prints the headline summary stats, so each
 backtest run is comparable against earlier ones over time.
 """
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -60,9 +61,15 @@ def deals_to_trades(deals: pd.DataFrame) -> pd.DataFrame:
         if row["dir"] == "in":
             if current:
                 trades.append(current)
+            setup_type = ""
+            if isinstance(row["comment"], str):
+                m = re.search(r"\b(REV|BRK)\b", row["comment"])
+                if m:
+                    setup_type = m.group(1)
             current = {
                 "entry_time": row["time"],
                 "direction": row["type"],
+                "setup_type": setup_type,
                 "entry_price": row["price"],
                 "volume": row["volume"],
                 "exit_time": None,
