@@ -1,8 +1,9 @@
 # 200 EMA Cross Alert System
 
-Watches XAUUSD, EURUSD, and GBPUSD on 5-minute candles for a price cross of
-the 200-period EMA, and sends a Telegram alert the moment it happens. Runs
-for free on a GitHub Actions schedule (no computer or paid server needed).
+Watches XAUUSD, EURUSD, GBPUSD, USDJPY, and BTCUSD on 5-minute candles for a
+price cross of the 200-period EMA, and sends a Telegram alert the moment it
+happens. Runs for free on a GitHub Actions schedule (no computer or paid
+server needed).
 
 ## 1. Create the Telegram bot
 
