@@ -30,6 +30,16 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m alert_bot.main
 
+      - name: Fetch MT5 account stats
+        if: always()
+        env:
+          METAAPI_TOKEN: ${{ secrets.METAAPI_TOKEN }}
+          METAAPI_ACCOUNT_ID_1: ${{ secrets.METAAPI_ACCOUNT_ID_1 }}
+          METAAPI_ACCOUNT_ID_2: ${{ secrets.METAAPI_ACCOUNT_ID_2 }}
+          MT5_ACCOUNT_1_LABEL: ${{ secrets.MT5_ACCOUNT_1_LABEL }}
+          MT5_ACCOUNT_2_LABEL: ${{ secrets.MT5_ACCOUNT_2_LABEL }}
+        run: python -m mt5_stats.fetch
+
       - name: Commit updated state
         if: always()
         run: |
