@@ -65,8 +65,11 @@ async def run() -> dict:
 
 def main() -> int:
     if not config.METAAPI_TOKEN or not config.ACCOUNTS:
+        # Not configured yet is an expected, normal state (this feature is
+        # optional) - not an error, so don't fail the whole workflow run
+        # over it.
         print("METAAPI_TOKEN or account IDs not configured - skipping MT5 stats fetch.", file=sys.stderr)
-        return 1
+        return 0
 
     results = asyncio.run(run())
 
