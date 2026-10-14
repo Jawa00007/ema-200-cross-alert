@@ -26,8 +26,10 @@ input double InpMaxDailyLossPercent=2.0;
 input bool InpBreakEvenAtTP1=true;
 input ulong InpMagic=151001;
 input int InpDeviationPoints=20;
+input bool InpUseTrendFilter=false;               // Only trade with the M15 trend
+input int InpTrendMAPeriod=50;
 
-int hFractals=INVALID_HANDLE, hATR15=INVALID_HANDLE, hATR1=INVALID_HANDLE;
+int hFractals=INVALID_HANDLE, hATR15=INVALID_HANDLE, hATR1=INVALID_HANDLE, hTrendMA=INVALID_HANDLE;
 datetime lastM1Bar=0, dayStart=0, lastExitDealTime=0;
 double dayStartEquity=0, activeTP1=0;
 int tradesToday=0, consecutiveLosses=0;
@@ -64,6 +66,27 @@ bool Levels(double price,double &sup,double &res){
   if(l>0){ if(l<price&&(sup==0||l>sup))sup=l; if(l>price&&(res==0||l<res))res=l; }
  }
  return sup>0||res>0;
+}
+// Tried and found NET HARMFUL on backtest, disabled by default - keeping
+// the mechanism (off) and this note so it isn't re-attempted blindly.
+// Motivation: longs won more than shorts (42.5% vs 35.8%, net +$3.81 vs
+// -$11.91/trade) across two test windows, suggesting shorts fight the
+// broader uptrend. But gating entries by price-vs-M15-MA backfired hard
+// on BOTH windows - Profit Factor dropped from 0.94/0.77 to 0.67/0.58, and
+// long win rate specifically collapsed from 50.6%/45.1% to 35.4%/35.5%.
+// Reason: a REVERSAL long is entered exactly when price has just dipped
+// below recent levels before bouncing - that's precisely when "price below
+// MA" reads as downtrend, so this filter blocks the best long setups
+// (pullback buys) rather than the bad ones. A trend filter suits
+// continuation/breakout entries, not mean-reversion ones; the short-side
+// weakness needs a different fix, not this one.
+int Trend(double price){
+ if(!InpUseTrendFilter)return 0;
+ double ma[]; ArraySetAsSeries(ma,true);
+ if(CopyBuffer(hTrendMA,0,1,1,ma)!=1)return 0;
+ if(price>ma[0])return 1;
+ if(price<ma[0])return -1;
+ return 0;
 }
 double SwingLow(double price){double s=0,r=0;Levels(price,s,r);return s;}
 double SwingHigh(double price){double s=0,r=0;Levels(price,s,r);return r;}
@@ -128,13 +151,14 @@ void ManagePosition(){
 // that actually made the wick) - not to c - per the transcript: "SL goes a
 // little below the wick IT left behind" (the rejection candle's wick).
 void Reversal(const MqlRates &c,const MqlRates &p,double s,double r,double tol){
- if(InpUseReversals&&s>0){
+ int trend=Trend(c.close);
+ if(InpUseReversals&&s>0&&trend>=0){
   bool touch=p.low<=s+tol&&p.low>=s-2*tol;
   bool reject=LowerWick(p)>Body(p)*0.5||Bull(p);
   bool confirm=Bull(c)&&c.close>MathMax(p.open,p.close);
   if(touch&&reject&&confirm&&r>c.close){double t2=SwingHigh(r+tol);if(t2>r)OpenTrade(true,p.low,r,t2);}
  }
- if(InpUseReversals&&r>0){
+ if(InpUseReversals&&r>0&&trend<=0){
   bool touch=p.high>=r-tol&&p.high<=r+2*tol;
   bool reject=UpperWick(p)>Body(p)*0.5||Bear(p);
   bool confirm=Bear(c)&&c.close<MathMin(p.open,p.close);
@@ -148,10 +172,11 @@ void Reversal(const MqlRates &c,const MqlRates &p,double s,double r,double tol){
 // No waiting for a post-break pullback/retest.
 void Breakout(const MqlRates &c,double s,double r,double tol){
  if(!InpUseBreakout)return;
- if(r>0&&StrongBull(c)&&c.close>r+tol){
+ int trend=Trend(c.close);
+ if(r>0&&trend>=0&&StrongBull(c)&&c.close>r+tol){
   double t1=SwingHigh(r+tol); if(t1>c.close){double t2=SwingHigh(t1+tol); if(t2>t1)OpenTrade(true,c.low,t1,t2);}
  }
- else if(s>0&&StrongBear(c)&&c.close<s-tol){
+ else if(s>0&&trend<=0&&StrongBear(c)&&c.close<s-tol){
   double t1=SwingLow(s-tol); if(t1>0&&t1<c.close){double t2=SwingLow(t1-tol); if(t2>0&&t2<t1)OpenTrade(false,c.high,t1,t2);}
  }
 }
@@ -159,10 +184,11 @@ void Breakout(const MqlRates &c,double s,double r,double tol){
 int OnInit(){
  if(!SymbolSelect(Sym(),true))return INIT_FAILED;
  hFractals=iFractals(Sym(),PERIOD_M15);hATR15=iATR(Sym(),PERIOD_M15,InpATRPeriod);hATR1=iATR(Sym(),PERIOD_M1,InpATRPeriod);
- if(hFractals==INVALID_HANDLE||hATR15==INVALID_HANDLE||hATR1==INVALID_HANDLE)return INIT_FAILED;
+ hTrendMA=iMA(Sym(),PERIOD_M15,InpTrendMAPeriod,0,MODE_SMA,PRICE_CLOSE);
+ if(hFractals==INVALID_HANDLE||hATR15==INVALID_HANDLE||hATR1==INVALID_HANDLE||hTrendMA==INVALID_HANDLE)return INIT_FAILED;
  trade.SetExpertMagicNumber(InpMagic);trade.SetDeviationInPoints(InpDeviationPoints);DailyRefresh();lastM1Bar=iTime(Sym(),PERIOD_M1,0);return INIT_SUCCEEDED;
 }
-void OnDeinit(const int reason){if(hFractals!=INVALID_HANDLE)IndicatorRelease(hFractals);if(hATR15!=INVALID_HANDLE)IndicatorRelease(hATR15);if(hATR1!=INVALID_HANDLE)IndicatorRelease(hATR1);}
+void OnDeinit(const int reason){if(hFractals!=INVALID_HANDLE)IndicatorRelease(hFractals);if(hATR15!=INVALID_HANDLE)IndicatorRelease(hATR15);if(hATR1!=INVALID_HANDLE)IndicatorRelease(hATR1);if(hTrendMA!=INVALID_HANDLE)IndicatorRelease(hTrendMA);}
 void OnTick(){
  DailyRefresh();ManagePosition();if(!NewM1())return;if(RiskBlocked()||HasPosition()||SpreadPts()>InpMaxSpreadPoints)return;
  MqlRates a[];ArraySetAsSeries(a,true);if(CopyRates(Sym(),PERIOD_M1,0,4,a)<4)return;
