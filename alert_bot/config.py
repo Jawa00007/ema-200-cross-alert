@@ -15,7 +15,9 @@ EMA_PERIOD = 200
 RESAMPLE_FREQ = "5min"
 HISTORY_BARS = 500
 
-INSTRUMENTS = ["eurusd", "gbpusd", "xauusd"]
+FX_INSTRUMENTS = ["eurusd", "gbpusd", "xauusd", "usdjpy"]
+CRYPTO_INSTRUMENTS = ["btcusd"]
+INSTRUMENTS = FX_INSTRUMENTS + CRYPTO_INSTRUMENTS
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 STATE_PATH = os.path.join(DATA_DIR, "crossover_state.json")

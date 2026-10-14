@@ -7,7 +7,10 @@ def process_instrument(instrument: str, cur_state: dict):
     """Updates cur_state in place for this instrument. Returns an alert dict if a crossover fired."""
     prior = cur_state.get(instrument)
 
-    closes = tiingo_client.fetch_closes(instrument)
+    if instrument in config.CRYPTO_INSTRUMENTS:
+        closes = tiingo_client.fetch_crypto_closes(instrument)
+    else:
+        closes = tiingo_client.fetch_closes(instrument)
     close, ema = ema_mod.latest_close_and_ema(closes, config.EMA_PERIOD)
     side = ema_mod.side_of(close, ema)
 
