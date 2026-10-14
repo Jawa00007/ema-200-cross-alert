@@ -1,32 +1,14 @@
 import sys
 
-from . import config, ema as ema_mod, gold_fallback_client, state as state_mod, telegram_notify, tiingo_client
-
-WARM_UP_MIN_SAMPLES = 30
+from . import config, ema as ema_mod, state as state_mod, telegram_notify, tiingo_client
 
 
 def process_instrument(instrument: str, cur_state: dict):
     """Updates cur_state in place for this instrument. Returns an alert dict if a crossover fired."""
-    use_tiingo = instrument != "xauusd" or config.TIINGO_SUPPORTS_GOLD
     prior = cur_state.get(instrument)
 
-    if use_tiingo:
-        closes = tiingo_client.fetch_closes(instrument)
-        close, ema = ema_mod.latest_close_and_ema(closes, config.EMA_PERIOD)
-        warm_up_count = None
-    else:
-        close = gold_fallback_client.fetch_latest_gold_price()
-        warm_up_count = prior.get("warm_up_count", 0) if prior else 0
-        prev_ema = prior["last_ema200"] if prior else None
-        if prev_ema is None or warm_up_count < WARM_UP_MIN_SAMPLES:
-            # Not enough history yet for a real EMA200 - seed with a running average.
-            prev_avg = prev_ema if prev_ema is not None else close
-            ema = (prev_avg * warm_up_count + close) / (warm_up_count + 1)
-            warm_up_count += 1
-        else:
-            ema = ema_mod.incremental_ema(prev_ema, close, config.EMA_PERIOD)
-            warm_up_count += 1
-
+    closes = tiingo_client.fetch_closes(instrument)
+    close, ema = ema_mod.latest_close_and_ema(closes, config.EMA_PERIOD)
     side = ema_mod.side_of(close, ema)
 
     alert = None
@@ -34,7 +16,7 @@ def process_instrument(instrument: str, cur_state: dict):
         direction = "crossed ABOVE" if side == "above" else "crossed BELOW"
         alert = {"instrument": instrument, "direction": direction, "close": close, "ema": ema}
 
-    state_mod.update_instrument_state(cur_state, instrument, close, ema, side, warm_up_count)
+    state_mod.update_instrument_state(cur_state, instrument, close, ema, side)
     return alert
 
 

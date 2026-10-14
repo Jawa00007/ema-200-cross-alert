@@ -28,8 +28,6 @@ jobs:
           TIINGO_API_TOKEN: ${{ secrets.TIINGO_API_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GOLD_FALLBACK_API_KEY: ${{ secrets.GOLD_FALLBACK_API_KEY }}
-          TIINGO_SUPPORTS_GOLD: ${{ secrets.TIINGO_SUPPORTS_GOLD }}
         run: python -m alert_bot.main
 
       - name: Commit updated state

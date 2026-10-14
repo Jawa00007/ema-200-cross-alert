@@ -10,10 +10,5 @@ def latest_close_and_ema(closes: pd.Series, period: int = 200):
     return float(closes.iloc[-1]), float(ema_series.iloc[-1])
 
 
-def incremental_ema(prev_ema: float, price: float, period: int = 200) -> float:
-    k = 2 / (period + 1)
-    return price * k + prev_ema * (1 - k)
-
-
 def side_of(close: float, ema: float) -> str:
     return "above" if close >= ema else "below"

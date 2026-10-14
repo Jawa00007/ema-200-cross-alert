@@ -18,16 +18,13 @@ def save_state(state: dict) -> None:
         json.dump(state, f, indent=2)
 
 
-def update_instrument_state(state: dict, instrument: str, close: float, ema: float, side: str, warm_up_count=None) -> dict:
-    entry = {
+def update_instrument_state(state: dict, instrument: str, close: float, ema: float, side: str) -> dict:
+    state[instrument] = {
         "side": side,
         "last_close": close,
         "last_ema200": ema,
         "last_updated": datetime.now(timezone.utc).isoformat(),
     }
-    if warm_up_count is not None:
-        entry["warm_up_count"] = warm_up_count
-    state[instrument] = entry
     return state
 
 

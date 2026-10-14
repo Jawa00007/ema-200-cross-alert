@@ -37,7 +37,6 @@ else:
         close = entry["last_close"]
         ema = entry["last_ema200"]
         distance_pct = (close - ema) / ema * 100
-        warming_up = entry.get("warm_up_count") is not None and entry["warm_up_count"] < 200
         rows.append(
             {
                 "Pair": instrument.upper(),
@@ -46,14 +45,13 @@ else:
                 "Distance %": round(distance_pct, 3),
                 "Side": entry["side"].upper(),
                 "Updated (UTC)": entry["last_updated"],
-                "Warming up": "Yes" if warming_up else "",
             }
         )
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 st.subheader("Crossover log")
 log_df = load_log()
 if log_df.empty:
     st.caption("No crossovers recorded yet.")
 else:
-    st.dataframe(log_df.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True)
+    st.dataframe(log_df.sort_values("timestamp", ascending=False), width='stretch', hide_index=True)

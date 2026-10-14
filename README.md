@@ -16,16 +16,7 @@ for free on a GitHub Actions schedule (no computer or paid server needed).
 2. Copy `.env.example` to `.env` and fill in `TIINGO_API_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 3. Install dependencies: `pip install -r requirements.txt`
 
-## 3. Run the Step 0 gold check (do this before anything else)
-
-```
-python scripts/check_tiingo_gold.py
-```
-
-- If it prints real price data for xauusd: set `TIINGO_SUPPORTS_GOLD=true` in `.env` (and later as a GitHub secret).
-- If it fails: leave `TIINGO_SUPPORTS_GOLD=false`, sign up for a free key at a metals spot-price API (e.g. metals-api.com) and put it in `GOLD_FALLBACK_API_KEY`. Gold's EMA will then build up incrementally over roughly a day of 5-minute runs instead of being computed from history immediately — this is expected, not a bug.
-
-## 4. Local smoke test
+## 3. Local smoke test
 
 ```
 python -m alert_bot.main
@@ -35,21 +26,21 @@ This fetches each instrument, computes/updates its EMA200, and writes `data/cros
 
 To force a test alert: open `data/crossover_state.json`, flip one instrument's `"side"` value (e.g. `"above"` to `"below"`), then rerun `python -m alert_bot.main`. You should get a Telegram message.
 
-## 5. Deploy to GitHub Actions
+## 4. Deploy to GitHub Actions
 
 1. Push this repo to GitHub.
-2. In the repo's **Settings → Secrets and variables → Actions**, add: `TIINGO_API_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GOLD_FALLBACK_API_KEY` (if used), `TIINGO_SUPPORTS_GOLD` (`true` or `false`).
+2. In the repo's **Settings → Secrets and variables → Actions**, add: `TIINGO_API_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 3. Go to the **Actions** tab, select "EMA 200 Cross Alert", and run it once manually (`Run workflow`) to confirm it succeeds and commits an update to `data/`.
 4. After that it runs automatically every 5 minutes via the cron schedule in `.github/workflows/ema_alert.yml`.
 
 Note: GitHub's free scheduled runs can occasionally lag a few extra minutes under high load — expected behavior for a free cron, not a bug in this code.
 
-## 6. iPhone notification settings
+## 5. iPhone notification settings
 
 - iPhone Settings → Telegram → Notifications: enable Banners, Sounds, Badges.
 - If you use Focus modes / Do Not Disturb: iPhone Settings → Focus → (your mode) → Apps, allow Telegram through, or mark its notifications as Time Sensitive.
 
-## 7. Dashboard
+## 6. Dashboard
 
 ```
 streamlit run dashboard/app.py

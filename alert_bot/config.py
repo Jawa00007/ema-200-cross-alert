@@ -10,12 +10,6 @@ except ImportError:
 TIINGO_API_TOKEN = os.environ.get("TIINGO_API_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-GOLD_FALLBACK_API_KEY = os.environ.get("GOLD_FALLBACK_API_KEY", "")
-
-# Flip to true (env var "true") once scripts/check_tiingo_gold.py confirms
-# Tiingo actually returns xauusd data on your account. Until then, gold uses
-# gold_fallback_client.py plus an incrementally-built EMA instead.
-TIINGO_SUPPORTS_GOLD = os.environ.get("TIINGO_SUPPORTS_GOLD", "false").lower() == "true"
 
 EMA_PERIOD = 200
 RESAMPLE_FREQ = "5min"
