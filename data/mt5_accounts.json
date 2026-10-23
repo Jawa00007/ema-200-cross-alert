@@ -1,10 +1,10 @@
 {
   "ForexTesting": {
     "balance": 10087.0,
-    "equity": 10122.26,
+    "equity": 10144.99,
     "gain_pct": 0.87,
     "drawdown_pct": 0.33,
     "demo": true,
-    "last_updated": "2026-10-23T20:52:54.276541+00:00"
+    "last_updated": "2026-10-23T23:42:51.643371+00:00"
   }
 }
