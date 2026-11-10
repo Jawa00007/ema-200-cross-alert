@@ -1,32 +1,32 @@
 {
   "eurusd": {
-    "side": "above",
-    "last_close": 1.122275,
-    "last_ema200": 1.1189871424834215,
-    "last_updated": "2026-11-09T20:13:53.113622+00:00"
+    "side": "below",
+    "last_close": 1.121815,
+    "last_ema200": 1.1220804741844375,
+    "last_updated": "2026-11-10T02:44:34.999742+00:00"
   },
   "gbpusd": {
-    "side": "above",
-    "last_close": 1.343935,
-    "last_ema200": 1.3408229235752143,
-    "last_updated": "2026-11-09T20:13:53.300358+00:00"
+    "side": "below",
+    "last_close": 1.34404,
+    "last_ema200": 1.3440436797832718,
+    "last_updated": "2026-11-10T02:44:35.106745+00:00"
   },
   "xauusd": {
-    "side": "above",
-    "last_close": 4138.52,
-    "last_ema200": 4108.594945052092,
-    "last_updated": "2026-11-09T20:13:53.479766+00:00"
+    "side": "below",
+    "last_close": 4115.73,
+    "last_ema200": 4133.677501335246,
+    "last_updated": "2026-11-10T02:44:35.250346+00:00"
   },
   "usdjpy": {
-    "side": "below",
-    "last_close": 157.8035,
-    "last_ema200": 158.03839014400847,
-    "last_updated": "2026-11-09T20:13:53.641381+00:00"
+    "side": "above",
+    "last_close": 158.066,
+    "last_ema200": 158.005451494733,
+    "last_updated": "2026-11-10T02:44:35.436981+00:00"
   },
   "btcusd": {
-    "side": "above",
-    "last_close": 74879.81514292618,
-    "last_ema200": 74621.6322389207,
-    "last_updated": "2026-11-09T20:13:53.848815+00:00"
+    "side": "below",
+    "last_close": 74738.78887957719,
+    "last_ema200": 75162.58095943702,
+    "last_updated": "2026-11-10T02:44:35.560484+00:00"
   }
 }
