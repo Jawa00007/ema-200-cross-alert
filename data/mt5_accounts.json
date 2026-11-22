@@ -5,7 +5,7 @@
     "gain_pct": 1.21,
     "drawdown_pct": 0.33,
     "demo": true,
-    "last_updated": "2026-11-22T12:59:43.045233+00:00"
+    "last_updated": "2026-11-22T20:14:48.563432+00:00"
   },
   "vfc": {
     "balance": 100000.0,
@@ -13,6 +13,6 @@
     "gain_pct": 0.0,
     "drawdown_pct": 0.0,
     "demo": true,
-    "last_updated": "2026-11-22T12:59:43.045233+00:00"
+    "last_updated": "2026-11-22T20:14:48.563432+00:00"
   }
 }
